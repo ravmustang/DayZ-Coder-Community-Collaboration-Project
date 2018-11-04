@@ -30,9 +30,8 @@
 	bool m_IsDebugRunning = false;
 	string godMode = "false";
 	ref array<Man> admins = new array<Man>;
-	//ref array<Param6<string, string>> adminsArray = new array<Param2<string, string>>;
-	string identityName;
-	string identityID;
+    // Misc Functions For Loading
+    string SelectedPos, strCodeline, identityName, identityID;
 	#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\configs\AdminToolsCfg.c"
 	#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\overrides\MS_InvokeOnConnect.c"
 	#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\tools\AdminTools.c"

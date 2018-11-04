@@ -20,14 +20,6 @@
 		GetGame().GetCallQueue(CALL_CATEGORY_GAMEPLAY).CallLater(CustomServerMessages, 1800 * 1000, true);  // 30 Min = 1800
 		GetGame().GetCallQueue(CALL_CATEGORY_GAMEPLAY).CallLater(CustomServerMessages, 150 * 1000, false);	// 2.5 mins dont repeat
 		GetGame().GetCallQueue(CALL_CATEGORY_GAMEPLAY).CallLater(SurvivorNameChange, 30 * 1000, true);  // 30 seconds
-		//GetGame().GetCallQueue(CALL_CATEGORY_GAMEPLAY).CallLater(DisconnectMonitor, 2 * 1000, true);  // 2 seconds
 		//GetGame().GetCallQueue(CALL_CATEGORY_GAMEPLAY).CallLater(SurvivorNameGoFuckYourself, 2 * 1000, true);  // 2 seconds
 		GetGame().GetCallQueue(CALL_CATEGORY_GAMEPLAY).CallLater(TempGodMode, 1 * 1000, true);  // 1 seconds
-		
-			
-		// Barrel Test
-		Object barrel;
-		barrel = GetGame().CreateObject("Barrel_Blue", "0 0 0");
-		barrel.SetPosition("2700 1.30 1950");
-		barrel.SetOrientation("90 0 0");
 	}
