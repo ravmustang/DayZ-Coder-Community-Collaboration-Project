@@ -1,50 +1,69 @@
 /*
-	DayZ SA CCCP Mod
-	
-	FileName: AdminTools.c
-	
-	Usage:
-	FNR:Description
-
-	Authors: DaOne
-	Modified by: DayZ SA CCCP Mod Team and Community Contributors(see credits.md)
-	FNR:ModTeamInfo
-	
-	FNR:LicenseInfo
-*/   
+    AdminTool.c
+    Created by DaOne?
+    Heavily Modified by DirtySanchez and Cleetus of CCCP
+    
+    You will need to add this to InvokeOnConnect
+    ```if (m_AdminList.Contains(identityID)) m_Admins.Insert(player);```
+    
+    You will need to add this to InvokeOnDisconnect
+    ```if (m_AdminList.Contains(player.GetIdentity().GetId()))
+        {
+            int indexA = m_Admins.Find(player);
+            m_Admins.Remove(indexA);
+        }```
+        
+    Obviously Admins will not fake disconnecting from the server, but if an admin hits ESC, then Exit and then YES it will remove them from the active admins list.
+*/
+    ref map<string, string> m_AdminList = new map<string, string>; //UID, name
+    ref map<string, vector> m_TPLocations = new map<string, vector>; //name of town, pos
+    ref array<Man> m_Admins = new array<Man>;
+    bool m_FreeCamera;
+    bool m_IsDebugRunning = false;
+    
+    // All admin actions are sent as message to all admins in game
+    bool AllAdminsMsg = false;
+        
     //------------------------------Admin quick Commands (Chatbased)-------------------
-    int TeleportAllPlayersTo(PlayerBase PlayerAdmin) {
+    int TeleportAllPlayersTo(PlayerBase PlayerAdmin)
+    {
         //Collectes Arry of players
         array<Man> players = new array<Man>;
-        GetGame().GetPlayers( players );
+        GetGame().GetPlayers(players);
         vector AdminPos;
         AdminPos = PlayerAdmin.GetPosition();
-        for (int i = 0; i < players.Count(); i++) {
-            PlayerBase Target = players.Get(i);
-            Target.SetPosition( AdminPos );
+        for (int targetloop = 0; targetloop < players.Count(); targetloop++)
+        {
+            PlayerBase Target = players.Get(targetloop);
+            Target.SetPosition(AdminPos);
         }
-        return i;
+        return targetloop;
     }
 
-    void oSpawnItemFunc(bool ground, PlayerBase player, string ClassName) {
+    void oSpawnItemFunc(bool ground, PlayerBase player, string ClassName)
+    {
         EntityAI item;
         ItemBase itemBs;
         vector NewPosition;
         vector OldPosition;
-        if (ground) {
+        if (ground)
+        {
             OldPosition = player.GetPosition();
             NewPosition[0] = OldPosition[0] + 1.5;
             NewPosition[1] = OldPosition[1] + 0.1;
             NewPosition[2] = OldPosition[2] + 1.5;
-            item = GetGame().CreateObject( ClassName, NewPosition, false, true );
-        } else {
+            item = GetGame().CreateObject(ClassName, NewPosition, false, true);
+        }
+        else
+        {
             item = player.GetInventory().CreateInInventory(ClassName);
             itemBs = ItemBase.Cast(item);    
             itemBs.SetQuantity(1);
         }
     }
 
-    vector SnapToGround(vector pos) {
+    vector SnapToGround(vector pos)
+    {
         float pos_x = pos[0];
         float pos_z = pos[2];
         float pos_y = GetGame().SurfaceY(pos_x, pos_z);
@@ -53,17 +72,20 @@
         return tmp_pos;
     }
     
-    void addMags(PlayerBase player, string mag_type, int count) {
+    void addMags(PlayerBase player, string mag_type, int count)
+    {
         if (count < 1)
             return;
         EntityAI mag;
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < count; i++)
+        {
             mag = player.GetInventory().CreateInInventory(mag_type);
         }
         player.SetQuickBarEntityShortcut(mag, 1, true);
     }
     
-    vector GetCursorPos(PlayerBase player) {
+    vector GetCursorPos(PlayerBase player)
+    {
         vector rayStart = GetGame().GetCurrentCameraPosition();
         vector rayEnd = rayStart + GetGame().GetCurrentCameraDirection() * 10000;
         vector hitPos;
@@ -73,530 +95,611 @@
         return hitPos;
     }
     
-    void teleport(PlayerBase player, vector pos) {
+    void teleport(PlayerBase player, vector pos)
+    {
         float distance = vector.Distance(player.GetPosition(), pos);
-        if (distance < 5000) {
+        if (distance < 5000)
+        {
             EntityAI oVehicle = player.GetDrivingVehicle();
-            if(oVehicle) {
+            if (oVehicle)
+            {
                 string msg = "Get out of the vehicle first!";
                 Param1<string> Msgparam = new Param1<string>(msg);
                 GetGame().RPCSingleParam(player, ERPCs.RPC_USER_ACTION_MESSAGE, Msgparam, true, player.GetIdentity());
-            } else {
-                player.SetPosition( pos );
             }
-        } else {
+            else
+            {
+                player.SetPosition(pos);
+            }
+        }
+        else
+        {
             msg = "Distance for teleportation is too far!";
             GetGame().RPCSingleParam(player, ERPCs.RPC_USER_ACTION_MESSAGE, Msgparam, true, player.GetIdentity());
         }
     }
     
-    void AdminMessaging(PlayerBase requestingAdmin, string AdminMsg) {
+    void AdminMessaging(PlayerBase requestingAdmin, string AdminMsg)
+    {
         Param1<string> m_MessageParam = new Param1<string>(AdminMsg);
-        if(AllAdminsMsg) {
-            for (int ad = 0; ad < admins.Count(); ad++) {
-                Man currAdmin = admins.Get(ad);
-                if( currAdmin ) GetGame().RPCSingleParam(currAdmin, ERPCs.RPC_USER_ACTION_MESSAGE, m_MessageParam, true, currAdmin.GetIdentity());
+        if (AllAdminsMsg)
+        {
+            for (int ad = 0; ad < m_Admins.Count(); ad++)
+            {
+                Man currAdmin = m_Admins.Get(ad);
+                if (currAdmin) GetGame().RPCSingleParam(currAdmin, ERPCs.RPC_USER_ACTION_MESSAGE, m_MessageParam, true, currAdmin.GetIdentity());
             }
-        } else {
+        }
+        else
+        {
             GetGame().RPCSingleParam(requestingAdmin, ERPCs.RPC_USER_ACTION_MESSAGE, m_MessageParam, true, requestingAdmin.GetIdentity());
         }
     }
     
     Man FindSelectedPlayer(string pName) {
-        PlayerBase selectedPlayer = NULL;
+        PlayerBase SelectedPlayer = NULL;
         array<Man> players = new array<Man>;
-        GetGame().GetPlayers( players );
-        for (int zm = 0; zm < players.Count(); zm++) {
+        GetGame().GetPlayers(players);
+        for (int zm = 0; zm < players.Count(); zm++)
+        {
             PlayerBase currentPlayer = players.Get(zm);
-            PlayerIdentity selectedIdentity = currentPlayer.GetIdentity();
-            if (selectedIdentity.GetName() == pName) {
-                selectedPlayer = currentPlayer;
-                zm=100;
+            PlayerIdentity SelectedIdentity = currentPlayer.GetIdentity();
+            string SelectedPlayerName = SelectedIdentity.GetName();
+            int numUpperSelected = SelectedPlayerName.ToLower();
+            int numUpperpName = pName.ToLower();
+            if (SelectedPlayerName.Contains(pName))
+            {
+                SelectedPlayer = currentPlayer;
+                break;
             }
         }
-        return selectedPlayer;
+        return SelectedPlayer;
     }
-	
-	void TempGodMode()
-	{
-		for ( int i = 0; i < admins.Count(); ++i )
-		{
-			PlayerBase player = admins.Get(i);
-			if( player.IsAlive() || player == NULL || !player )
-			{
-				string PlayerUID = player.GetIdentity().GetId();
-				g_Game.GetProfileString("adminGodMode"+PlayerUID, godMode);
-				if(debugTempGodMode) PrintFormat( "[DonkeyAHAT] - init.c TempGodMode godMode:%1 admins:%2", godMode, admins );
-				if ( godMode == "true" )
-				{
-					player.SetHealth( player.GetMaxHealth( "", "" ) );
-					player.SetHealth( "","Blood", player.GetMaxHealth( "", "Blood" ) );
-					player.SetHealth("","Shock", player.GetMaxHealth("","Shock") );
-					
-					float energy = player.GetStatEnergy().Get();
-					player.GetStatEnergy().Add( energy + 1.25 );
-					
-					float water = player.GetStatWater().Get();
-					player.GetStatWater().Add( water + 1.25 );
-					
-					player.GetStatStamina().Set(1000); // Not sure if working or not
-					
-					player.GetStatWet().Add( -1 );
-					
-					
-					//player.GetStatTemperature().Add( (TEMPERATURE_INCREMENT_PER_SEC*deltaT) );
-					//TREMOR_TRESHOLD = 35.5
-					//player.GetStatTremor().Set( TREMOR_TRESHOLD - player.GetStatTemperature().Get() );
-					//Make a player tremor, set their temperature to lower than 35.5
-					
-					if(debugTempGodMode) PrintFormat( "[DonkeyAHAT] - init.c TempGodMode energy:%1 water:%2", energy, water );
-										
-					EntityAI CurrentWeapon = player.GetHumanInventory().GetEntityInHands();
-					if( CurrentWeapon )
-					{
-						Magazine foundMag = ( Magazine ) CurrentWeapon.GetAttachmentByConfigTypeName( "DefaultMagazine" );
-						if( foundMag && foundMag.IsMagazine())
-						{
-							foundMag.ServerSetAmmoMax();
-						}
 
-						Object Suppressor = ( Object ) CurrentWeapon.GetAttachmentByConfigTypeName( "SuppressorBase" );
-						if( Suppressor )
-						{
-							Suppressor.SetHealth( Suppressor.GetMaxHealth( "", "" ) );
-						}
-					}
-				}
-			}else{
-				admins.Remove(i);
+	void HideMessages()
+	{
+		array<Man> players = new array<Man>;
+		GetGame().GetPlayers( players );
+
+		for (int hideloop = 0; hideloop < players.Count(); hideloop++)
+		{
+			PlayerBase hidePlayer = players.Get(hideloop);
+            if (!m_AdminList.Contains(hidePlayer.GetIdentity().GetName()))
+            {
+                for (int hideloop2 = 0; hideloop2 < 12; hideloop2++)
+                {
+                    Param1<string> Msgparam;
+                    Msgparam = new Param1<string>("  ");
+                    GetGame().RPCSingleParam(hidePlayer, ERPCs.RPC_USER_ACTION_MESSAGE, Msgparam, true, hidePlayer.GetIdentity());
+                }
+            }
+            else
+            {
+                break;
 			}
 		}
 	}
     
-    override void OnEvent(EventType eventTypeId, Param params) {
+    override void OnEvent(EventType eventTypeId, Param params)
+    {
         PlayerIdentity identity;
         PlayerBase player;
         ItemBase item;
-        int counter = 0;
-            
-        switch(eventTypeId) {
+        
+        //eventTypeId Switch
+        switch(eventTypeId)
+        {
             //--------------
             case ChatMessageEventTypeID:
-                ChatMessageEventParams chat_params = ChatMessageEventParams.Cast( params );
-
-                // Print("Channel: "+chat_params.param1+" From: "+chat_params.param2+ " Message: "+chat_params.param3+ " Color: "+chat_params.param4);
-                //PrintFormat("[DonkeyDebug] - missionServer.c ChatMessageEventTypeID chat_params:%1 - param1:%2 - param2:%3 - param3:%4 ", chat_params, chat_params.param1, chat_params.param2, chat_params.param3);
+                ChatMessageEventParams m_ChatParams = ChatMessageEventParams.Cast(params);
                 
-                array<Man> players = new array<Man>;
-                GetGame().GetPlayers(players);
-
-                string strMessage;
-                string strs[10];
-                string lineIn = chat_params.param3;
-                lineIn.ParseString(strs);
-                string commandIn = strs[0] + strs[1];
-                string locationName;
-                vector ofixPlayerPos;
+                array<Man> m_Players = new array<Man>;
+                GetGame().GetPlayers(m_Players);
+        
+                // Variables for Command Parsing
+                array<string> m_CmdParams = new array<string>;
+                string m_CodeLine, m_MessageOut, m_LocationName;
+                string m_LineIn = m_ChatParams.param3;
+                m_LineIn.Split(" ", m_CmdParams);
                 
-                //if (strs[0] == "/") { Print("Command Sent: " + strs[0] + strs[1] + strs[2] + strs[3] + strs[4] + strs[5] + strs[6] + strs[7] + strs[8] + strs[9] + "."); } //Debugging
+                // Variables for Commands
+                vector m_FixedPosition, m_RawPosition;
+                PlayerBase m_SelectedPlayer;
+                PlayerIdentity m_SelectedIdentity;
+                Param1<string> m_MsgParam;
+                int counter = 0;
+                
+                //Print("Channel: "+m_ChatParams.param1+" From: "+m_ChatParams.param2+ " Message: "+m_ChatParams.param3+ " Color: "+m_ChatParams.param4);
+                //PrintFormat("[DonkeyDebug] - missionServer.c ChatMessageEventTypeID m_ChatParams:%1 - param1:%2 - param2:%3 - param3:%4 ", m_ChatParams, m_ChatParams.param1, m_ChatParams.param2, m_ChatParams.param3);
+                //if (m_CmdParams[0] == "/") { Print("Command Sent: " + m_CmdParams[0] + m_CmdParams[1] + m_CmdParams[2] + m_CmdParams[3] + m_CmdParams[4] + m_CmdParams[5] + m_CmdParams[6] + m_CmdParams[7] + m_CmdParams[8] + m_CmdParams[9] + "."); } //Debugging
 
-                PlayerBase selectedPlayer;
-                PlayerIdentity selectedIdentity;
-
-                Param1<string> Msgparam;
-
-                for (int i = 0; i < admins.Count(); i++) {
-                    PlayerBase playerAdmin = admins.Get(i);
-                    if( (playerAdmin == NULL) || !playerAdmin )
-                        return;
-                    PlayerIdentity identityT = playerAdmin.GetIdentity();
-                    string PlayerUID = identityT.GetId();
-                    string playerAdminName = playerAdmin.GetIdentity().GetName();
+                // Admin Loop
+                for (int adminsloop = 0; adminsloop < m_Admins.Count(); adminsloop++)
+                {
+                    PlayerBase m_Admin = m_Admins.Get(adminsloop);
+                    if ((m_Admin == NULL)|| !m_Admin) { break; }
+                    PlayerIdentity m_PlayerAdminIdentity = m_Admin.GetIdentity();
+                    string m_AdminUID = m_PlayerAdminIdentity.GetId();
+                    string m_AdminName = m_Admin.GetIdentity().GetName();
                     // Check player name to sent chat name
-                    if (playerAdminName == chat_params.param2 && m_AdminList.Contains(PlayerUID)) {
-						if (strs[0] != "" && strs[1] != "") {
-                            switch (commandIn) {
+                    if (m_AdminName == m_ChatParams.param2 && m_AdminList.Contains(m_AdminUID))
+                    {
+                        // Check that Command is not empty
+                        if (m_CmdParams[0] != "")
+                        {
+                            if (!m_CmdParams[0].Contains("/")) { break; }
+                            //GetGame().GetCallQueue(CALL_CATEGORY_GAMEPLAY).CallLater(this.HideMessages, 1, false);
+                            
+                            // Command Switch
+                            switch (m_CmdParams[0])
+                            {
                                 // -------------------------------------------------------------------------------------------------------------------------- START OF COMMANDS =================
-                                // strs[0] + strs[1] = commandIn    (command sent by user)
-                                // strs[2]                          (parameter 1 for commands)
-                                // strs[3]                          (parameter 2 for commands)
-                                // strs[4]                          (parameter 3 for commands)
-                                // strs[5]                          (parameter 4 for commands)
-                                // strs[6]                          (parameter 5 for commands)
-                                // strs[7]                          (parameter 6 for commands)
-                                // strs[8]                          (parameter 7 for commands)
-                                // strs[9]                          (parameter 8 for commands)
+                                // m_CmdParams[0]                          (command sent by user)
+                                // m_CmdParams[1]                          (parameter 1 for commands)
+                                // m_CmdParams[2]                          (parameter 2 for commands)
+                                // m_CmdParams[3]                          (parameter 3 for commands)
+                                // m_CmdParams[4]                          (parameter 4 for commands)
+                                // m_CmdParams[5]                          (parameter 5 for commands)
+                                // m_CmdParams[6]                          (parameter 6 for commands)
+                                // m_CmdParams[7]                          (parameter 7 for commands)
+                                // m_CmdParams[8]                          (parameter 8 for commands)
+                                // m_CmdParams[9]                          (parameter 9 for commands)
                                 // --------------------------------------------------------------------------------------------------------------------------
-								
-					
-					//TELEPORT TOOLS
+                    //TELEPORT TOOLS
+                                // -------------------------------------------------------------------------------------------------------------------------- /teleport
+                                case "/teleport":
+                                    vector hitPos = GetCursorPos(m_Admin);
+                                    teleport(m_Admin, hitPos);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /tppm
                                 case "/tppm":
-                                    if (strs[2] != "") {
-                                        selectedPlayer = FindSelectedPlayer(strs[2]);
-                                        if (selectedPlayer != NULL) {
-                                            playerAdmin.SetPosition(selectedPlayer.GetPosition());
-                                            strMessage = "Admin:" + playerAdminName + " was teleported to " + strs[2] + ".";
-                                        } else {
-                                            strMessage = "Could not find player " + strs[2] + ". Please check the name and try again.";
+                                    if (m_CmdParams[1] != "")
+                                    {
+                                        m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
+                                        if (m_SelectedPlayer != NULL)
+                                        {
+                                            m_Admin.SetPosition(m_SelectedPlayer.GetPosition());
+                                            m_MessageOut = "Admin:" + m_AdminName + " was teleported to " + m_SelectedPlayer.GetIdentity().GetName() + ".";
                                         }
-                                    } else {
-                                        strMessage = "Please type a player name first.";
+                                        else
+                                        {
+                                            m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                        }
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Please type a player name first.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
+                                // -------------------------------------------------------------------------------------------------------------------------- /tplist
+                                case "/tplist":
+                                    for (counter = 0; counter < m_TPLocations.Count(); counter++)
+                                    {
+                                        if (counter == 0)
+                                        {
+                                            m_MessageOut = m_TPLocations.GetKey(counter);
+                                        }
+                                        else
+                                        {
+                                            m_MessageOut = m_MessageOut + ", " + m_TPLocations.GetKey(counter);
+                                        }
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /tpto
                                 case "/tpto":
-                                    if (strs[2] != "") {
-                                        locationName = strs[2];
-                                        if (strs[3] != "") { locationName += " " + strs[3]; }
-                                        if (strs[4] != "") { locationName += " " + strs[4]; }
-                                        if (strs[5] != "") { locationName += " " + strs[5]; }
-                                        if (strs[6] != "") { locationName += " " + strs[6]; }
-                                        if (strs[7] != "") { locationName += " " + strs[7]; }
-                                        if (strs[8] != "") { locationName += " " + strs[8]; }
-                                        if (strs[9] != "") { locationName += " " + strs[9]; }
-                                        Print(locationName);
-                                        vector position = "0 0 0";
-                                    
-                                        if (m_TPLocations.Contains(locationName)) {
-                                            m_TPLocations.Find(locationName, position);
-                                            ofixPlayerPos[0] = position[0];
-                                            ofixPlayerPos[2] = position[2];
-                                            ofixPlayerPos = SnapToGround(ofixPlayerPos);
-                                            playerAdmin.SetPosition(ofixPlayerPos);
-                                            strMessage = "Teleported To Location: " + locationName + ".";
-                                        } else {                                
-                                            strMessage = "Teleport Failed! Location: " + locationName + " is not on the list!";
+                                    if (m_CmdParams[1] != "")
+                                    {
+                                        m_LocationName = m_CmdParams[1];
+                                        for (counter = 2; counter < m_CmdParams.Count(); counter++)
+                                        {
+                                            if (m_CmdParams[counter] != "")
+                                            { 
+                                                m_LocationName = m_LocationName + " " + m_CmdParams[counter];
+                                            }
+                                            else { break; }
                                         }
-                                    } else {
-                                        strMessage = "Teleport Failed! Please enter a location first!";
+                                        Print(m_LocationName);
+                                    
+                                        if (m_TPLocations.Contains(m_LocationName))
+                                        {
+                                            m_TPLocations.Find(m_LocationName, m_RawPosition);
+                                            m_FixedPosition[0] = m_RawPosition[0];
+                                            m_FixedPosition[2] = m_RawPosition[2];
+                                            m_FixedPosition = SnapToGround(m_FixedPosition);
+                                            m_Admin.SetPosition(m_FixedPosition);
+                                            m_MessageOut = "Teleported To Location: " + m_LocationName + ".";
+                                        }
+                                        else
+                                        {
+                                            m_MessageOut = "Teleport Failed! Location: " + m_LocationName + " is not on the list!"; }
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Teleport Failed! Please enter a location first!";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /tpc
                                 case "/tpc":
-                                    if (strs[2] != "" && strs[3] != "") {
-                                        vector tpPos;
-                                        tpPos[0] = strs[2].ToFloat();
-                                        tpPos[1] = 0;
-                                        tpPos[2] = strs[3].ToFloat();
-                                        tpPos = SnapToGround(tpPos);
-                                        playerAdmin.SetPosition(tpPos);
-                                        strMessage = "Teleported to: " + tpPos;
-                                    } else {
-                                        strMessage = "Teleport Failed. Make sure to provide 3 coordinates (middle doesn't matter).";
+                                    if (m_CmdParams[1] != "" && m_CmdParams[2] != "")
+                                    {
+                                        m_FixedPosition[0] = m_CmdParams[1].ToFloat();
+                                        m_FixedPosition[1] = 0;
+                                        m_FixedPosition[2] = m_CmdParams[2].ToFloat();
+                                        m_FixedPosition = SnapToGround(m_FixedPosition);
+                                        m_Admin.SetPosition(m_FixedPosition);
+                                        m_MessageOut = "Teleported to: " + m_FixedPosition;
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Teleport Failed. Make sure to provide X and Z coordinates.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /tpp
                                 case "/tpp":
-                                    if (strs[2] != "") {
-                                        selectedPlayer = FindSelectedPlayer(strs[2]);
-                                        if (selectedPlayer != NULL) {
-                                            selectedPlayer.SetPosition(playerAdmin.GetPosition());
-                                            strMessage = "Player " + strs[2] + " was teleported to Admin: " + playerAdminName + "'s location!";
-                                        } else {
-                                            strMessage = "Could not find player " + strs[2] + ". Please check the name and try again.";
+                                    if (m_CmdParams[1] != "")
+                                    {
+                                        m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
+                                        if (m_SelectedPlayer != NULL)
+                                        {
+                                            m_SelectedPlayer.SetPosition(m_Admin.GetPosition());
+                                            m_MessageOut = "Player " + m_SelectedPlayer.GetIdentity().GetName() + " was teleported to Admin: " + m_AdminName + "'s location!";
                                         }
-                                    } else {
-                                        strMessage = "Please type a player name first.";
+                                        else
+                                        {
+                                            m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                        }
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Please type a player name first.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /tppto
                                 case "/tppto":
-                                    if (strs[2] != "") {
-                                        locationName = strs[2];
-                                        if (strs[3] != "") { locationName += " " + strs[3]; }
-                                        if (strs[4] != "") { locationName += " " + strs[4]; }
-                                        if (strs[5] != "") { locationName += " " + strs[5]; }
-                                        if (strs[6] != "") { locationName += " " + strs[6]; }
-                                        if (strs[7] != "") { locationName += " " + strs[7]; }
-                                        if (strs[8] != "") { locationName += " " + strs[8]; }
-                                        if (strs[9] != "") { locationName += " " + strs[9]; }
-                                        Print(locationName);
-                                        if (locationName != "") {
-                                            selectedPlayer = FindSelectedPlayer(strs[2]);
-                                            if (selectedPlayer != NULL) {
-                                                if (m_TPLocations.Contains(locationName)) {
-                                                    m_TPLocations.Find(locationName, position);
-                                                    ofixPlayerPos[0] = position[0];
-                                                    ofixPlayerPos[2] = position[2];
-                                                    ofixPlayerPos = SnapToGround(ofixPlayerPos);
-                                                    selectedPlayer.SetPosition(ofixPlayerPos);
-                                                    strMessage = strs[2] + " has been teleported to: " + locationName + ".";
-                                                } else {                                
-                                                    strMessage = "Teleport Failed! Location: " + locationName + " is not on the list!";
-                                                }
-                                            } else {
-                                                strMessage = "Could not find player " + strs[2] + ". Please check the name and try again.";
+                                    if (m_CmdParams[1] != "")
+                                    {
+                                        m_LocationName = m_CmdParams[2];
+                                        for (counter = 3; counter < m_CmdParams.Count(); counter++)
+                                        {
+                                            if (m_CmdParams[counter] != "")
+                                            {
+                                                m_LocationName = m_LocationName + " " + m_CmdParams[counter];
                                             }
-                                        } else {
-                                            strMessage = "Please type a Location first.";
+                                            else { break; }
                                         }
-                                        strMessage = "Please type a player name first.";
+                                        Print(m_LocationName);
+                                        if (m_LocationName != "")
+                                        {
+                                            m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
+                                            if (m_SelectedPlayer != NULL)
+                                            {
+                                                if (m_TPLocations.Contains(m_LocationName))
+                                                {
+                                                    m_TPLocations.Find(m_LocationName, m_RawPosition);
+                                                    m_FixedPosition[0] = m_RawPosition[0];
+                                                    m_FixedPosition[2] = m_RawPosition[2];
+                                                    m_FixedPosition = SnapToGround(m_FixedPosition);
+                                                    m_SelectedPlayer.SetPosition(m_FixedPosition);
+                                                    m_MessageOut = m_SelectedPlayer.GetIdentity().GetName() + " has been teleported to: " + m_LocationName + ".";
+                                                }
+                                                else
+                                                {
+                                                    m_MessageOut = "Teleport Failed! Location: " + m_LocationName + " is not on the list!";
+                                                }
+                                            }
+                                            else
+                                            {
+                                                m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            }
+                                        }
+                                        else
+                                        {
+                                            m_MessageOut = "Please type a Location first.";
+                                        }
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Please type a player name first.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                     //HELPER TOOLS
                                 // -------------------------------------------------------------------------------------------------------------------------- /spi
                                 case "/spi":
-                                    if (strs[2] != "") {    
-                                        oSpawnItemFunc(false, playerAdmin, strs[2]);
-                                        strMessage = "Admin: " + playerAdminName + " spawned Item: " + strs[2] + " in their Inventory!";
-                                    } else {
-                                        strMessage = "Please type an item name first.";
+                                    if (m_CmdParams[1] != "")
+                                    {
+                                        oSpawnItemFunc(false, m_Admin, m_CmdParams[1]);
+                                        m_MessageOut = "Admin: " + m_AdminName + " spawned Item: " + m_CmdParams[1] + " in their Inventory!";
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Please type an item name first.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /spg
                                 case "/spg":
-                                    if (strs[2] != "") {
-                                        oSpawnItemFunc(true,playerAdmin,strs[2]);
-                                        strMessage = "Admin: " + playerAdminName + " spawned Item: " + strs[2] + " on the ground!";
-                                    } else {
-                                        strMessage = "Please type an item name first.";
+                                    if (m_CmdParams[1] != "")
+                                    {
+                                        oSpawnItemFunc(true,m_Admin,m_CmdParams[1]);
+                                        m_MessageOut = "Admin: " + m_AdminName + " spawned Item: " + m_CmdParams[1] + " on the ground!";
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Please type an item name first.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /heal
                                 case "/heal":
-                                    Msgparam = new Param1<string>("Player Healed!");
-                                    GetGame().RPCSingleParam(playerAdmin, ERPCs.RPC_USER_ACTION_MESSAGE, Msgparam, true, playerAdmin.GetIdentity());
-                                    for (int bsRemoveLoop = 0; bsRemoveLoop < playerAdmin.GetBleedingManager().m_BleedingSources.Count(); bsRemoveLoop++) {
+                                    m_MsgParam = new Param1<string>("Player Healed!");
+                                    GetGame().RPCSingleParam(m_Admin, ERPCs.RPC_USER_ACTION_MESSAGE, m_MsgParam, true, m_Admin.GetIdentity());
+                                    for (counter = 0; counter < m_Admin.GetBleedingManager().m_BleedingSources.Count(); counter++)
+                                    {
                                         player.GetBleedingManager().RemoveSingleBleedingSource();
                                     }
-                                    playerAdmin.SetHealth(playerAdmin.GetMaxHealth("", ""));
-                                    playerAdmin.SetHealth("", "Blood", playerAdmin.GetMaxHealth("", "Blood"));
-                                    break;
+                                    m_Admin.SetHealth(m_Admin.GetMaxHealth("", ""));
+                                    m_Admin.SetHealth("", "Blood", m_Admin.GetMaxHealth("", "Blood"));
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /healp
                                 case "/healp":
-                                    if (strs[2] != "") {
-                                        selectedPlayer = FindSelectedPlayer(strs[2]);
-                                        if (selectedPlayer != NULL) {
-                                            for (int pbsRemoveLoop = 0; pbsRemoveLoop < selectedPlayer.GetBleedingManager().m_BleedingSources.Count(); pbsRemoveLoop++) {
-                                                selectedPlayer.GetBleedingManager().RemoveSingleBleedingSource();
+                                    if (m_CmdParams[1] != "")
+                                    {
+                                        m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
+                                        if (m_SelectedPlayer != NULL)
+                                        {
+                                            for (counter = 0; counter < m_SelectedPlayer.GetBleedingManager().m_BleedingSources.Count(); counter++)
+                                            {
+                                                m_SelectedPlayer.GetBleedingManager().RemoveSingleBleedingSource();
                                             }
-                                            selectedPlayer.SetHealth(selectedPlayer.GetMaxHealth("", ""));
-                                            selectedPlayer.SetHealth("", "Blood", selectedPlayer.GetMaxHealth("", "Blood"));
-                                            strMessage = "Player " + strs[2] + " was teleported to Admin: " + playerAdminName + "'s location!";
-                                        } else {
-                                            strMessage = "Could not find player " + strs[2] + ". Please check the name and try again.";
+                                            m_SelectedPlayer.SetHealth(m_SelectedPlayer.GetMaxHealth("", ""));
+                                            m_SelectedPlayer.SetHealth("", "Blood", m_SelectedPlayer.GetMaxHealth("", "Blood"));
+                                            m_MessageOut = "Player " + m_SelectedPlayer.GetIdentity().GetName() + " was healed by Admin: " + m_AdminName + ".";
                                         }
-                                    } else {
-                                        strMessage = "Please type a player name first.";
+                                        else
+                                        {
+                                            m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                        }
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Please type a player name first.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /healall
                                 case "/healall":
-                                    for (int ha = 0; ha < players.Count(); ha++) {
-                                        PlayerBase Patient = players.Get(ha);
-                                            for (int absRemoveLoop = 0; absRemoveLoop < Patient.GetBleedingManager().m_BleedingSources.Count(); absRemoveLoop++) {
-                                                Patient.GetBleedingManager().RemoveSingleBleedingSource();
+                                    for (int healallloop = 0; healallloop < m_Players.Count(); healallloop++)
+                                    {
+                                        PlayerBase m_Patient = m_Players.Get(healallloop);
+                                            for (counter = 0; counter < m_Patient.GetBleedingManager().m_BleedingSources.Count(); counter++)
+                                            {
+                                                m_Patient.GetBleedingManager().RemoveSingleBleedingSource();
                                             }
-                                        Patient.SetHealth(playerAdmin.GetMaxHealth("", ""));
-                                        Patient.SetHealth("","Blood", playerAdmin.GetMaxHealth("", "Blood"));
+                                        m_Patient.SetHealth(m_Admin.GetMaxHealth("", ""));
+                                        m_Patient.SetHealth("","Blood", m_Admin.GetMaxHealth("", "Blood"));
                                     }
-                                    strMessage = "All Player's Healed by Admin: " + playerAdminName;
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    m_MessageOut = "All Player's Healed by Admin: " + m_AdminName;
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                     //PUNISHMENT TOOLS
                                 // -------------------------------------------------------------------------------------------------------------------------- /killp
                                 case "/killp":
-                                    if (strs[2] != "") {
-                                        selectedPlayer = FindSelectedPlayer(strs[2]);
-                                        if (selectedPlayer != NULL) {
-                                            selectedPlayer.SetHealth(0);
-                                            strMessage = "Player: " + strs[2] + " was Killed by Admin: " + playerAdminName + ".";
-                                        } else {
-                                            strMessage = "Could not find player " + strs[2] + ". Please check the name and try again.";
+                                    if (m_CmdParams[1] != "")
+                                    {
+                                        m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
+                                        if (m_SelectedPlayer != NULL)
+                                        {
+                                            m_SelectedPlayer.SetHealth(0);
+                                            m_MessageOut = "Player: " + m_SelectedPlayer.GetIdentity().GetName() + " was Killed by Admin: " + m_AdminName + ".";
                                         }
-                                    } else {
-                                        strMessage = "Please type a player name first.";
+                                        else
+                                        {
+                                            m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                        }
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Please type a player name first.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /strip
                                 case "/strip":
-                                    if (strs[2] != "") {
-                                        selectedPlayer = FindSelectedPlayer(strs[2]);
-                                        if (selectedPlayer != NULL) {
-                                            selectedPlayer.RemoveAllItems();
-                                            strMessage = "Player:" + strs[2] + " was striped down by Admin: " + playerAdminName + ".";
-                                        } else {
-                                            strMessage = "Could not find player " + strs[2] + ". Please check the name and try again.";
+                                    if (m_CmdParams[1] != "")
+                                        {
+                                        m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
+                                        if (m_SelectedPlayer != NULL)
+                                        {
+                                            m_SelectedPlayer.RemoveAllItems();
+                                            m_MessageOut = "Player:" + m_SelectedPlayer.GetIdentity().GetName() + " was striped down by Admin: " + m_AdminName + ".";
                                         }
-                                    } else {
-                                        strMessage = "Please type a player name first.";
+                                        else
+                                        {
+                                            m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                        }
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Please type a player name first.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /salty
                                 case "/salty":
-                                    if (strs[2] != "") {
-                                        selectedPlayer = FindSelectedPlayer(strs[2]);
-                                        if (selectedPlayer != NULL) {
-                                            item = GetGame().CreateObject("M67Grenade", selectedPlayer.GetPosition(), false, true);
+                                    if (m_CmdParams[1] != "")
+                                    {
+                                        m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
+                                        if (m_SelectedPlayer != NULL)
+                                        {
+                                            item = GetGame().CreateObject("M67Grenade", m_SelectedPlayer.GetPosition(), false, true);
                                             item.Explode();
-                                            strMessage = "Player:" + strs[2] + " was salted(Grenade) by Admin: " + playerAdminName + ".";
-                                        } else {
-                                            strMessage =  "Could not find player " + strs[2] + ". Please check the name and try again.";
+                                            m_MessageOut = "Player:" + m_SelectedPlayer.GetIdentity().GetName() + " was salted(Grenade) by Admin: " + m_AdminName + ".";
                                         }
-                                    } else {
-                                        strMessage = "Please type a player name first.";
+                                        else
+                                        {
+                                            m_MessageOut =  "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                        }
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Please type a player name first.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /kill
                                 case "/kill":
-                                    playerAdmin.SetHealth(0);
-                                    break;
+                                    m_Admin.SetHealth(0);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /killall
                                 case "/killall":
-                                    for (int ig = 0; ig < players.Count(); ig++) {
-                                        PlayerBase Target = players.Get(ig);
-                                        if ((Target.GetIdentity()) == identityT) {
-                                        } else {
-                                            Target = players.Get(ig);
+                                    for (counter = 0; counter < m_Players.Count(); counter++)
+                                    {
+                                        PlayerBase Target = m_Players.Get(counter);
+                                        if ((Target.GetIdentity()) == m_PlayerAdminIdentity){
+                                            //DO NOTHING, DON'T KILL THE ADMIN WHO SENT THE COMMAND.
+                                        }
+                                        else
+                                        {
+                                            Target = m_Players.Get(counter);
                                             Target.SetHealth(0);
                                         }
                                     }
-                                    strMessage = "All Player's Killed by Admin: " + playerAdminName + ".";
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    m_MessageOut = "All Player's Killed by Admin: " + m_AdminName + ".";
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                     //DEVELOPER TOOLS
-                                // -------------------------------------------------------------------------------------------------------------------------- /cmd
-                                case "/cmd":
-                                    if (chat_params.param3.Contains("/execEnf")) {
-                                        int sLength = chat_params.param3.Length();
-                                        strCodeline = chat_params.param3.Substring(13, sLength);
-                                        GetGame().ExecuteEnforceScript("void scConsMain() \n{\n" + strCodeline + "\n}\n", "scConsMain");
-                                        Print("strCodeline: " + strCodeline);
-                                        strMessage = "Command executed!";
-                                    } else {
-                                        strMessage = "Please learn how to use this correctly first!";
-                                    }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /build
                                 case "/build":
-                                    if (strs[2] != "") {
-                                        vector admPOS = playerAdmin.GetPosition();
+                                    if (m_CmdParams[1] != "")
+                                    {
+                                        vector admPOS = m_Admin.GetPosition();
                                         vector buildPOS; 
                                         buildPOS[0] = admPOS[0] + 5;
                                         buildPOS[2] = admPOS[2] + 5;
-                                        Object Buildable = GetGame().CreateObject(strs[2], buildPOS, false, false, true);
+                                        Object Buildable = GetGame().CreateObject(m_CmdParams[1], buildPOS, false, false, true);
                                         //AttachTo(Object obj, vector local_pos = "0 0 0", vector local_ori = "0 0 0")
-                                        //Buildable.AttachTo( playerAdmin, "0, 5, 0", "0 0 1");
-                                        strMessage = "Object " + strs[2] + " created successfully!";
-                                    } else {
-                                        strMessage = "Please type an Object name first.";
+                                        //Buildable.AttachTo(m_Admin, "0, 5, 0", "0 0 1");
+                                        m_MessageOut = "Object " + m_CmdParams[1] + " created successfully!";
                                     }
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    else
+                                    {
+                                        m_MessageOut = "Please type an Object name first.";
+                                    }
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /list
                                 case "/list":
-                                    for (int list = 0; list < players.Count(); list++) {
-                                        selectedPlayer = players.Get(list);
-                                        selectedIdentity = selectedPlayer.GetIdentity();
-                                        Msgparam = new Param1<string>("Player Name: " + selectedIdentity.GetName());
-                                        GetGame().RPCSingleParam(playerAdmin, ERPCs.RPC_USER_ACTION_MESSAGE, Msgparam, true, playerAdmin.GetIdentity());
+                                    for (counter = 0; counter < m_Players.Count(); counter++)
+                                    {
+                                        m_SelectedPlayer = m_Players.Get(counter);
+                                        m_SelectedIdentity = m_SelectedPlayer.GetIdentity();
+                                        m_MsgParam = new Param1<string>("Player Name: " + m_SelectedIdentity.GetName());
+                                        GetGame().RPCSingleParam(m_Admin, ERPCs.RPC_USER_ACTION_MESSAGE, m_MsgParam, true, m_Admin.GetIdentity());
                                     }
-                                    break;
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /tpalltome
                                 case "/tpalltome":
-                                    int tpCount = TeleportAllPlayersTo(playerAdmin);
-                                    strMessage = "All " + tpCount.ToString() + " Players Teleported to Admin: " + playerAdminName + "'s POS!";
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    int tpCount = TeleportAllPlayersTo(m_Admin);
+                                    m_MessageOut = "All " + tpCount.ToString() + " Players Teleported to Admin: " + m_AdminName + "'s POS!";
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                         //ADMIN TOOLS
                                 // -------------------------------------------------------------------------------------------------------------------------- /godmode
                                 case "/godmode":
                                     string currentMode;
-                                    g_Game.GetProfileString("adminGodMode" + PlayerUID, currentMode);
-                                    if (currentMode == "false") {
-                                        g_Game.SetProfileString("adminGodMode" + PlayerUID, "true");
-                                        Msgparam = new Param1<string>("You have turned Godmode ON");
-                                    } else {
-                                        g_Game.SetProfileString("adminGodMode" + PlayerUID, "false");
-                                        Msgparam = new Param1<string>("You have turned Godmode OFF");
+                                    g_Game.GetProfileString("adminGodMode" + m_AdminUID, currentMode);
+                                    if (currentMode == "false")
+                                    {
+                                        g_Game.SetProfileString("adminGodMode" + m_AdminUID, "true");
+                                        m_MsgParam = new Param1<string>("You have turned Godmode ON");
+                                    }
+                                    else
+                                    {
+                                        g_Game.SetProfileString("adminGodMode" + m_AdminUID, "false");
+                                        m_MsgParam = new Param1<string>("You have turned Godmode OFF");
                                     }
                                     g_Game.SaveProfile();
-                                    GetGame().RPCSingleParam(playerAdmin, ERPCs.RPC_USER_ACTION_MESSAGE, Msgparam, true, playerAdmin.GetIdentity());
-                                    break;
+                                    GetGame().RPCSingleParam(m_Admin, ERPCs.RPC_USER_ACTION_MESSAGE, m_MsgParam, true, m_Admin.GetIdentity());
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /freecam
                                 case "/freecam":
-                                    PlayerBase pBody = playerAdmin;
-                                    if (m_FreeCamera) {
-                                        GetGame().SelectPlayer(playerAdmin.GetIdentity(), pBody);
+                                    PlayerBase pBody = m_Admin;
+                                    if (m_FreeCamera)
+                                    {
+                                        GetGame().SelectPlayer(m_Admin.GetIdentity(), pBody);
                                         m_FreeCamera = false;
-                                        strMessage = "Admin: " + playerAdminName + " is Exiting FreeCam!";
-                                        AdminMessaging(playerAdmin, strMessage);
-                                    } else {
-                                        GetGame().SelectPlayer(playerAdmin.GetIdentity(), NULL);
-                                        GetGame().SelectSpectator(playerAdmin.GetIdentity(), "freedebugcamera", playerAdmin.GetPosition()); //staticcamera, freedebugcamera, dayzspectator
-                                        m_FreeCamera = true;
-                                        strMessage = "Admin: " + playerAdminName + " is Entering FreeCam!";
-                                        AdminMessaging(playerAdmin, strMessage);
+                                        m_MessageOut = "Admin: " + m_AdminName + " is Exiting FreeCam!";
+                                        AdminMessaging(m_Admin, m_MessageOut);
                                     }
-                                    break;
+                                    else
+                                    {
+                                        GetGame().SelectPlayer(m_Admin.GetIdentity(), NULL);
+                                        GetGame().SelectSpectator(m_Admin.GetIdentity(), "freedebugcamera", m_Admin.GetPosition()); //staticcamera, freedebugcamera, dayzspectator
+                                        m_FreeCamera = true;
+                                        m_MessageOut = "Admin: " + m_AdminName + " is Entering FreeCam!";
+                                        AdminMessaging(m_Admin, m_MessageOut);
+                                    }
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /remove
                                 case "/remove":
-                                    EntityAI CurrentInHands = playerAdmin.GetHumanInventory().GetEntityInHands();
+                                    EntityAI CurrentInHands = m_Admin.GetHumanInventory().GetEntityInHands();
                                     string displayName = CurrentInHands.ConfigGetString("displayName");
                                     GetGame().ObjectDelete(CurrentInHands);
-                                    playerAdmin.OnItemInHandsChanged();
-                                    strMessage = "Admin: " + playerAdminName + " have removed " + displayName + ".";
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    m_Admin.OnItemInHandsChanged();
+                                    m_MessageOut = "Admin: " + m_AdminName + " have removed " + displayName + ".";
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /nighttime
                                 case "/nighttime":
                                     GetGame().GetWorld().SetDate(1988, 5, 23, 22, 0);
-                                    Msgparam = new Param1<string>("NIGHT TIME!!");
-                                    GetGame().RPCSingleParam(playerAdmin, ERPCs.RPC_USER_ACTION_MESSAGE, Msgparam, true, playerAdmin.GetIdentity());
-                                    break;
+                                    m_MsgParam = new Param1<string>("NIGHT TIME!!");
+                                    GetGame().RPCSingleParam(m_Admin, ERPCs.RPC_USER_ACTION_MESSAGE, m_MsgParam, true, m_Admin.GetIdentity());
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /daytime
                                 case "/daytime":
                                     GetGame().GetWorld().SetDate(1988, 5, 23, 12, 0);
-                                    Msgparam = new Param1<string>("DAY TIME!!");
-                                    GetGame().RPCSingleParam(playerAdmin, ERPCs.RPC_USER_ACTION_MESSAGE, Msgparam, true, playerAdmin.GetIdentity());
-                                    break;
+                                    m_MsgParam = new Param1<string>("DAY TIME!!");
+                                    GetGame().RPCSingleParam(m_Admin, ERPCs.RPC_USER_ACTION_MESSAGE, m_MsgParam, true, m_Admin.GetIdentity());
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /dawntime
                                 case "/dawntime":
                                     GetGame().GetWorld().SetDate(1988, 5, 23, 6, 0);
-                                    Msgparam = new Param1<string>("Time Changed to 6 am");
-                                    GetGame().RPCSingleParam(playerAdmin, ERPCs.RPC_USER_ACTION_MESSAGE, Msgparam, true, playerAdmin.GetIdentity());
-                                    break;
-                                // -------------------------------------------------------------------------------------------------------------------------- /gm
-                                case "/gm":
-                                    playerAdmin.RPCSingleParam(ERPCs.DEV_RPC_TOGGLE_GOD_MODE, NULL, true);
-                                    break;
+                                    m_MsgParam = new Param1<string>("Time Changed to 6 am");
+                                    GetGame().RPCSingleParam(m_Admin, ERPCs.RPC_USER_ACTION_MESSAGE, m_MsgParam, true, m_Admin.GetIdentity());
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /debug
                                 case "/debug":
-                                    if (m_IsDebugRunning) {
-                                        strMessage = "Admin: " + playerAdminName + " DeBug Monitor (Status Monitor) Disabled!";
-                                        AdminMessaging(playerAdmin, strMessage);
+                                    if (m_IsDebugRunning)
+                                    {
+                                        m_MessageOut = "Admin: " + m_AdminName + " DeBug Monitor (Status Monitor) Disabled!";
+                                        AdminMessaging(m_Admin, m_MessageOut);
                                         GetGame().SetDebugMonitorEnabled(0);
                                         m_IsDebugRunning = false;
-                                    } else {
-                                        strMessage = "Admin: " + playerAdminName + " DeBug Monitor (Status Monitor) Enabled!";
-                                        AdminMessaging(playerAdmin, strMessage);
+                                    }
+                                    else
+                                    {
+                                        m_MessageOut = "Admin: " + m_AdminName + " DeBug Monitor (Status Monitor) Enabled!";
+                                        AdminMessaging(m_Admin, m_MessageOut);
                                         GetGame().SetDebugMonitorEnabled(1);
                                         m_IsDebugRunning = true;
                                     }
-                                    break;
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /spawncar
                                 case "/spawncar":
                                     EntityAI MyV3S;
                                     vector NewPosition;
                                     vector OldPosition;
-                                    OldPosition = playerAdmin.GetPosition();
+                                    OldPosition = m_Admin.GetPosition();
                                     NewPosition[0] = OldPosition[0] + 1.5;
                                     NewPosition[1] = OldPosition[1] + 0.2;
                                     NewPosition[2] = OldPosition[2] + 1.5;
-                                    MyV3S = GetGame().CreateObject("OffroadHatchback", NewPosition, false, true, true );
+                                    MyV3S = GetGame().CreateObject("OffroadHatchback", NewPosition, false, true, true);
                                     MyV3S.GetInventory().CreateAttachment("HatchbackHood");
                                     MyV3S.GetInventory().CreateAttachment("HatchbackTrunk");
                                     MyV3S.GetInventory().CreateAttachment("HatchbackDoors_CoDriver");
@@ -607,46 +710,47 @@
                                     MyV3S.GetInventory().CreateAttachment("SparkPlug");
                                     MyV3S.GetInventory().CreateAttachment("EngineBelt");
                                     MyV3S.GetInventory().CreateAttachment("CarBattery");
-                                    strMessage = "Admin: " + playerAdminName + " has spawned in a vehicle";
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    m_MessageOut = "Admin: " + m_AdminName + " has spawned in a vehicle";
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- /bandit
                                 case "/bandit":
-                                    playerAdmin.RemoveAllItems();
-                                    playerAdmin.GetInventory().CreateInInventory("BallisticHelmet_Black");
-                                    playerAdmin.GetInventory().CreateInInventory("BagMountain_Green");
-                                    playerAdmin.GetInventory().CreateInInventory("CombatBoots_Brown");
-                                    playerAdmin.GetInventory().CreateInInventory("USMCPants_Woodland");
-                                    playerAdmin.GetInventory().CreateInInventory("PlateCarrierComplete2");
-                                    playerAdmin.GetInventory().CreateInInventory("SmershVestBackpack");
-                                    playerAdmin.GetInventory().CreateInInventory("TortillaBag");
-                                    playerAdmin.GetInventory().CreateInInventory("TacticalGloves_Green");
-                                    playerAdmin.GetInventory().CreateInInventory("TacticalShirt_Black");
-                                    playerAdmin.GetInventory().CreateInInventory("TacticalBaconCan_Opened");
-                                    playerAdmin.GetInventory().CreateInInventory("SpaghettiCan_Opened");
-                                    playerAdmin.GetInventory().CreateInInventory("SardinesCan_Opened");
-                                    playerAdmin.GetInventory().CreateInInventory("TunaCan_Opened");
-                                    playerAdmin.GetInventory().CreateInInventory("PersonalRadio");
-                                    EntityAI rifles = playerAdmin.GetHumanInventory().CreateInInventory("AKM");
+                                    m_Admin.RemoveAllItems();
+                                    m_Admin.GetInventory().CreateInInventory("BallisticHelmet_Black");
+                                    m_Admin.GetInventory().CreateInInventory("BagMountain_Green");
+                                    m_Admin.GetInventory().CreateInInventory("CombatBoots_Brown");
+                                    m_Admin.GetInventory().CreateInInventory("USMCPants_Woodland");
+                                    m_Admin.GetInventory().CreateInInventory("PlateCarrierComplete2");
+                                    m_Admin.GetInventory().CreateInInventory("SmershVestBackpack");
+                                    m_Admin.GetInventory().CreateInInventory("TortillaBag");
+                                    m_Admin.GetInventory().CreateInInventory("TacticalGloves_Green");
+                                    m_Admin.GetInventory().CreateInInventory("TacticalShirt_Black");
+                                    m_Admin.GetInventory().CreateInInventory("TacticalBaconCan_Opened");
+                                    m_Admin.GetInventory().CreateInInventory("SpaghettiCan_Opened");
+                                    m_Admin.GetInventory().CreateInInventory("SardinesCan_Opened");
+                                    m_Admin.GetInventory().CreateInInventory("TunaCan_Opened");
+                                    m_Admin.GetInventory().CreateInInventory("PersonalRadio");
+                                    EntityAI rifles = m_Admin.GetHumanInventory().CreateInInventory("AKM");
                                     rifles.GetInventory().CreateAttachment("AK_RailHndgrd_Black");
                                     rifles.GetInventory().CreateAttachment("KobraOptic");
                                     rifles.GetInventory().CreateAttachment("AK_PlasticBttstck_Green");
                                     rifles.GetInventory().CreateAttachment("AK_Suppressor");
-                                    addMags(playerAdmin, "Mag_AKM_Drum75Rnd_Black", 3);
-                                    playerAdmin.LocalTakeEntityToHands(rifles);
-                                    EntityAI entity_hands1 = playerAdmin.GetHumanInventory().GetEntityInHands();
-                                    playerAdmin.SetQuickBarEntityShortcut(rifles, 0, true);
-                                    strMessage = "Admin: " + playerAdminName + " has spawned the bandit loadout";
-                                    AdminMessaging(playerAdmin, strMessage);
-                                    break;
+                                    addMags(m_Admin, "Mag_AKM_Drum75Rnd_Black", 3);
+                                    m_Admin.LocalTakeEntityToHands(rifles);
+                                    EntityAI entity_hands1 = m_Admin.GetHumanInventory().GetEntityInHands();
+                                    m_Admin.SetQuickBarEntityShortcut(rifles, 0, true);
+                                    m_MessageOut = "Admin: " + m_AdminName + " has spawned the bandit loadout";
+                                    AdminMessaging(m_Admin, m_MessageOut);
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- !Invalid Command!
                                 default:
-                                    if (strs[0] == "/") {
+                                    if (m_CmdParams[0].Substring(0, 1) == "/")
+                                    {
                                         //Invalid Command
-                                        strMessage = "Invalid Command: " + commandIn + ".";
-                                        AdminMessaging(playerAdmin, strMessage);
+                                        m_MessageOut = "Invalid Command: " + m_CmdParams[0] + ".";
+                                        AdminMessaging(m_Admin, m_MessageOut);
                                     }
-                                    break;
+                                break;
                                 // -------------------------------------------------------------------------------------------------------------------------- END OF COMMANDS =================
                             }
                         }
@@ -658,41 +762,44 @@
                 PreloadEventParams preloadParams;
                 Class.CastTo(preloadParams, params);
                 OnPreloadEvent(preloadParams.param1, preloadParams.param2, preloadParams.param3, preloadParams.param4, preloadParams.param5);
-                break;
+            break;
             case ClientNewEventTypeID:
                 ClientNewEventParams newParams;
                 Class.CastTo(newParams, params);
                 player = OnClientNewEvent(newParams.param1, newParams.param2, newParams.param3);
-                if (!player) {
+                if (!player)
+                {
                     Debug.Log("ClientNewEvent: Player is empty");
                     return;
                 }
                 identity = newParams.param1;
-                InvokeOnConnect(player,identity );
-                break;
+                InvokeOnConnect(player,identity);
+            break;
             case ClientReadyEventTypeID:
                 ClientReadyEventParams readyParams;
                 Class.CastTo(readyParams, params);
                 identity = readyParams.param1;
                 Class.CastTo(player, readyParams.param2);
-                if (!player) {
+                if (!player)
+                {
                     Debug.Log("ClientReadyEvent: Player is empty");
                     return;
                 }
                 OnClientReadyEvent(identity, player);
                 InvokeOnConnect(player, identity);
-                break;
+            break;
             case ClientRespawnEventTypeID:
                 ClientRespawnEventParams respawnParams;
                 Class.CastTo(respawnParams, params);
                 identity = respawnParams.param1;
                 Class.CastTo(player, respawnParams.param2);
-                if (!player) {
+                if (!player)
+                {
                     Debug.Log("ClientRespawnEvent: Player is empty");
                     return;
                 }
                 OnClientRespawnEvent(identity, player);
-                break;
+            break;
             case ClientDisconnectedEventTypeID:
                 ClientDisconnectedEventParams discoParams;
                 Class.CastTo(discoParams, params);
@@ -700,24 +807,28 @@
                 Class.CastTo(player, discoParams.param2);
                 int discTime = discoParams.param3;
                 bool authFailed = discoParams.param4;
-                if (!player) {
+                if (!player)
+                {
                     Debug.Log("ClientDisconnectenEvent: Player is empty");
                     return;
                 }
                 InvokeOnDisconnect(player);
                 OnClientDisconnectedEvent(identity, player, discTime, authFailed);
-                break;
+            break;
             case LogoutCancelEventTypeID:
                 LogoutCancelEventParams logoutCancelParams;
                 Class.CastTo(logoutCancelParams, params);
                 Class.CastTo(player, logoutCancelParams.param1);
                 identity = player.GetIdentity();
-                if (identity) {
+                if (identity)
+                {
                     Print("[Logout]: Player " + identity.GetId() + " cancelled");
-                } else {
+                }
+                else
+                {
                     Print("[Logout]: Player cancelled"); 
                 }
                 m_LogoutPlayers.Remove(player);
-                break;
+            break;
         }
     }

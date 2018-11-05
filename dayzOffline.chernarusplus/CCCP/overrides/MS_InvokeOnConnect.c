@@ -35,7 +35,7 @@
 			ServerMessagingSystem(msg);
 		}
 
-		if ( m_AdminList.Contains( identityID ) ) admins.Insert(player);
+		if ( m_AdminList.Contains( identityID ) ) m_Admins.Insert(player);
 		
 		if( identityName == "Survivor" ) survivors.Insert(player);
 	}

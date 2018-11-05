@@ -21,6 +21,7 @@
 		// USAGE: m_AdminList.Insert("player.GetIdentity().GetId()", "AdminName");
 		
 		m_AdminList.Insert("4Mqulobq2FoykRmOOJXBku52yO4K28dqL5b9VyTT+p0=", "DirtySanchez");
+        m_AdminList.Insert("SBIUtPKACQhwYC6KcK6iXNBaIGnldLJDIWZNUaN5xMs=", "Cleetus");
 		Print("Class AdminTool:: Loading Scripted Mods...");
 		
 		// TP location List

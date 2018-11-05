@@ -34,8 +34,9 @@
     // Misc Functions For Loading
     string SelectedPos, strCodeline, identityName, identityID;
 	#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\configs\AdminToolsCfg.c"
-	#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\overrides\MS_InvokeOnConnect.c"
 	#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\tools\AdminTools.c"
+	#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\overrides\MS_InvokeOnConnect.c"
+	#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\overrides\MS_InvokeOnDisconnect.c"
 
 //Messaging System
 	//Join messages
