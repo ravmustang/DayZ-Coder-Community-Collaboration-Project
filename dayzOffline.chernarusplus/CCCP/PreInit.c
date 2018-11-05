@@ -14,7 +14,7 @@
 	Authors: DayZ SA CCCP Mod Team and Community Contributors(see credits.md)
 	FNR:ModTeamInfo
 	
-	FNR:LicenseInfo
+	This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 */
 
 
@@ -30,6 +30,7 @@
 	bool m_IsDebugRunning = false;
 	string godMode = "false";
 	ref array<Man> admins = new array<Man>;
+	TStringArray ChatParseArray = new TStringArray;
     // Misc Functions For Loading
     string SelectedPos, strCodeline, identityName, identityID;
 	#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\configs\AdminToolsCfg.c"
@@ -42,13 +43,6 @@
 	string joinedServer = "false";
 	vector lastLocation = "0 0 0";
 	ref array<Man> clients = new array<Man>;
-	
-	//Param4<string, string, string, string> ClientParams;
-	ref array<string, string, string, string, vector> ClientParams = new array<string, string, string, string, vector>; 
-	// id, name, joined
-	ref array<Param5<string, string, string, string, vector>> ClientsArray = new array<Param5<string, string, string, string, vector>>; 
-	ref array<string> clientNames = new array<string>;
-	ref array<string> clientIDs = new array<string>;
 	//Number Of Players
 	string msg = "";
 	string playerCountMsg = "";
