@@ -30,7 +30,6 @@
 	bool m_IsDebugRunning = false;
 	string godMode = "false";
 	ref array<Man> m_Admins = new array<Man>;
-	TStringArray ChatParseArray = new TStringArray;
     // Misc Functions For Loading
     string SelectedPos, strCodeline, identityName, identityID;
 	#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\configs\AdminToolsCfg.c"
