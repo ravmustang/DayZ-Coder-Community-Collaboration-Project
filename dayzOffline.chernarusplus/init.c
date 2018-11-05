@@ -11,7 +11,9 @@
 	
 	FNR:LicenseInfo
 */
-	
+
+#include "$CurrentDir:\mpmissions\dayzOffline.chernarusplus\CCCP\tools\CreateLandObject.c"
+
 void main()
 {
 	//Load map structures-before Hive Init
