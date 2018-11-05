@@ -29,7 +29,7 @@
 	bool m_FreeCamera;
 	bool m_IsDebugRunning = false;
 	string godMode = "false";
-	ref array<Man> admins = new array<Man>;
+	ref array<Man> m_Admins = new array<Man>;
 	TStringArray ChatParseArray = new TStringArray;
     // Misc Functions For Loading
     string SelectedPos, strCodeline, identityName, identityID;

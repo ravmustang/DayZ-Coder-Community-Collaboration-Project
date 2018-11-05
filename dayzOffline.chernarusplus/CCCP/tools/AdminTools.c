@@ -1,28 +1,25 @@
 /*
-    AdminTool.c
-    Created by DaOne?
-    Heavily Modified by DirtySanchez and Cleetus of CCCP
-    
-    You will need to add this to InvokeOnConnect
-    ```if (m_AdminList.Contains(identityID)) m_Admins.Insert(player);```
-    
-    You will need to add this to InvokeOnDisconnect
-    ```if (m_AdminList.Contains(player.GetIdentity().GetId()))
-        {
-            int indexA = m_Admins.Find(player);
-            m_Admins.Remove(indexA);
-        }```
-        
-    Obviously Admins will not fake disconnecting from the server, but if an admin hits ESC, then Exit and then YES it will remove them from the active admins list.
-*/
-    ref map<string, string> m_AdminList = new map<string, string>; //UID, name
+	DayZ SA CCCP Mod
+	
+	FileName: AdminTools.c
+	
+	Usage:
+	FNR:Description
+
+	Authors: DaOne
+	Modified by: DayZ SA CCCP Mod Team and Community Contributors(see credits.md)
+	FNR:ModTeamInfo
+	
+	This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+*/   
+    /*ref map<string, string> m_AdminList = new map<string, string>; //UID, name
     ref map<string, vector> m_TPLocations = new map<string, vector>; //name of town, pos
     ref array<Man> m_Admins = new array<Man>;
     bool m_FreeCamera;
     bool m_IsDebugRunning = false;
     
     // All admin actions are sent as message to all admins in game
-    bool AllAdminsMsg = false;
+    bool AllAdminsMsg = false;*/
         
     //------------------------------Admin quick Commands (Chatbased)-------------------
     int TeleportAllPlayersTo(PlayerBase PlayerAdmin)
@@ -832,3 +829,60 @@
             break;
         }
     }
+	
+	void TempGodMode()
+	{
+		for ( int tg = 0; tg < m_Admins.Count(); ++tg )
+		{
+			if(m_Admins.Get(tg) == NULL) m_Admins.Remove(tg);
+			PlayerBase player = m_Admins.Get(tg);
+			if( player.IsAlive() && player )
+			{
+				string PlayerUID = player.GetIdentity().GetId();
+				g_Game.GetProfileString("adminGodMode"+PlayerUID, godMode);
+				if(debugTempGodMode) PrintFormat( "[DonkeyAHAT] - init.c TempGodMode godMode:%1 m_Admins:%2", godMode, m_Admins );
+				if ( godMode == "true" )
+				{
+					player.SetHealth( player.GetMaxHealth( "", "" ) );
+					player.SetHealth( "","Blood", player.GetMaxHealth( "", "Blood" ) );
+					player.SetHealth("","Shock", player.GetMaxHealth("","Shock") );
+					
+					float energy = player.GetStatEnergy().Get();
+					player.GetStatEnergy().Add( energy + 1.25 );
+					
+					float water = player.GetStatWater().Get();
+					player.GetStatWater().Add( water + 1.25 );
+					
+					player.GetStatStamina().Set(1000); // Not sure if working or not
+					
+					player.GetStatWet().Add( -1 );
+					
+					
+					//player.GetStatTemperature().Add( (TEMPERATURE_INCREMENT_PER_SEC*deltaT) );
+					//TREMOR_TRESHOLD = 35.5
+					//player.GetStatTremor().Set( TREMOR_TRESHOLD - player.GetStatTemperature().Get() );
+					//Make a player tremor, set their temperature to lower than 35.5
+					
+					if(debugTempGodMode) PrintFormat( "[DonkeyAHAT] - init.c TempGodMode energy:%1 water:%2", energy, water );
+										
+					EntityAI CurrentWeapon = player.GetHumanInventory().GetEntityInHands();
+					if( CurrentWeapon )
+					{
+						Magazine foundMag = ( Magazine ) CurrentWeapon.GetAttachmentByConfigTypeName( "DefaultMagazine" );
+						if( foundMag && foundMag.IsMagazine())
+						{
+							foundMag.ServerSetAmmoMax();
+						}
+
+						Object Suppressor = ( Object ) CurrentWeapon.GetAttachmentByConfigTypeName( "SuppressorBase" );
+						if( Suppressor )
+						{
+							Suppressor.SetHealth( Suppressor.GetMaxHealth( "", "" ) );
+						}
+					}
+				}
+			}else{
+				m_Admins.Remove(tg);
+			}
+		}
+	}
