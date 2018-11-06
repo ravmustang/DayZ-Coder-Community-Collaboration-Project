@@ -134,6 +134,7 @@
     }
     
     Man FindSelectedPlayer(string pName) {
+        matchcounter = 0;
         PlayerBase SelectedPlayer = NULL;
         array<Man> players = new array<Man>;
         GetGame().GetPlayers(players);
@@ -147,7 +148,7 @@
             if (SelectedPlayerName.Contains(pName))
             {
                 SelectedPlayer = currentPlayer;
-                break;
+                matchcounter++;
             }
         }
         return SelectedPlayer;
@@ -253,14 +254,20 @@
                                     if (m_CmdParams[1] != "")
                                     {
                                         m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
-                                        if (m_SelectedPlayer != NULL)
-                                        {
-                                            m_Admin.SetPosition(m_SelectedPlayer.GetPosition());
-                                            m_MessageOut = "Admin:" + m_AdminName + " was teleported to " + m_SelectedPlayer.GetIdentity().GetName() + ".";
+                                        if (matchcounter == 1) {
+                                            if (m_SelectedPlayer != NULL)
+                                            {
+                                                m_Admin.SetPosition(m_SelectedPlayer.GetPosition());
+                                                m_MessageOut = "Admin:" + m_AdminName + " was teleported to " + m_SelectedPlayer.GetIdentity().GetName() + ".";
+                                            }
+                                            else
+                                            {
+                                                m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            }
                                         }
                                         else
                                         {
-                                            m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
                                         }
                                     }
                                     else
@@ -340,14 +347,20 @@
                                     if (m_CmdParams[1] != "")
                                     {
                                         m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
-                                        if (m_SelectedPlayer != NULL)
-                                        {
-                                            m_SelectedPlayer.SetPosition(m_Admin.GetPosition());
-                                            m_MessageOut = "Player " + m_SelectedPlayer.GetIdentity().GetName() + " was teleported to Admin: " + m_AdminName + "'s location!";
+                                        if (matchcounter == 1) {
+                                            if (m_SelectedPlayer != NULL)
+                                            {
+                                                m_SelectedPlayer.SetPosition(m_Admin.GetPosition());
+                                                m_MessageOut = "Player " + m_SelectedPlayer.GetIdentity().GetName() + " was teleported to Admin: " + m_AdminName + "'s location!";
+                                            }
+                                            else
+                                            {
+                                                m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            }
                                         }
                                         else
                                         {
-                                            m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
                                         }
                                     }
                                     else
@@ -373,25 +386,31 @@
                                         if (m_LocationName != "")
                                         {
                                             m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
-                                            if (m_SelectedPlayer != NULL)
-                                            {
-                                                if (m_TPLocations.Contains(m_LocationName))
+                                            if (matchcounter == 1) {
+                                                if (m_SelectedPlayer != NULL)
                                                 {
-                                                    m_TPLocations.Find(m_LocationName, m_RawPosition);
-                                                    m_FixedPosition[0] = m_RawPosition[0];
-                                                    m_FixedPosition[2] = m_RawPosition[2];
-                                                    m_FixedPosition = SnapToGround(m_FixedPosition);
-                                                    m_SelectedPlayer.SetPosition(m_FixedPosition);
-                                                    m_MessageOut = m_SelectedPlayer.GetIdentity().GetName() + " has been teleported to: " + m_LocationName + ".";
+                                                    if (m_TPLocations.Contains(m_LocationName))
+                                                    {
+                                                        m_TPLocations.Find(m_LocationName, m_RawPosition);
+                                                        m_FixedPosition[0] = m_RawPosition[0];
+                                                        m_FixedPosition[2] = m_RawPosition[2];
+                                                        m_FixedPosition = SnapToGround(m_FixedPosition);
+                                                        m_SelectedPlayer.SetPosition(m_FixedPosition);
+                                                        m_MessageOut = m_SelectedPlayer.GetIdentity().GetName() + " has been teleported to: " + m_LocationName + ".";
+                                                    }
+                                                    else
+                                                    {
+                                                        m_MessageOut = "Teleport Failed! Location: " + m_LocationName + " is not on the list!";
+                                                    }
                                                 }
                                                 else
                                                 {
-                                                    m_MessageOut = "Teleport Failed! Location: " + m_LocationName + " is not on the list!";
+                                                    m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
                                                 }
                                             }
                                             else
                                             {
-                                                m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                                m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
                                             }
                                         }
                                         else
@@ -448,19 +467,25 @@
                                     if (m_CmdParams[1] != "")
                                     {
                                         m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
-                                        if (m_SelectedPlayer != NULL)
-                                        {
-                                            for (counter = 0; counter < m_SelectedPlayer.GetBleedingManager().m_BleedingSources.Count(); counter++)
+                                        if (matchcounter == 1) {
+                                            if (m_SelectedPlayer != NULL)
                                             {
-                                                m_SelectedPlayer.GetBleedingManager().RemoveSingleBleedingSource();
+                                                for (counter = 0; counter < m_SelectedPlayer.GetBleedingManager().m_BleedingSources.Count(); counter++)
+                                                {
+                                                    m_SelectedPlayer.GetBleedingManager().RemoveSingleBleedingSource();
+                                                }
+                                                m_SelectedPlayer.SetHealth(m_SelectedPlayer.GetMaxHealth("", ""));
+                                                m_SelectedPlayer.SetHealth("", "Blood", m_SelectedPlayer.GetMaxHealth("", "Blood"));
+                                                m_MessageOut = "Player " + m_SelectedPlayer.GetIdentity().GetName() + " was healed by Admin: " + m_AdminName + ".";
                                             }
-                                            m_SelectedPlayer.SetHealth(m_SelectedPlayer.GetMaxHealth("", ""));
-                                            m_SelectedPlayer.SetHealth("", "Blood", m_SelectedPlayer.GetMaxHealth("", "Blood"));
-                                            m_MessageOut = "Player " + m_SelectedPlayer.GetIdentity().GetName() + " was healed by Admin: " + m_AdminName + ".";
+                                            else
+                                            {
+                                                m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            }
                                         }
                                         else
                                         {
-                                            m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
                                         }
                                     }
                                     else
@@ -490,14 +515,20 @@
                                     if (m_CmdParams[1] != "")
                                     {
                                         m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
-                                        if (m_SelectedPlayer != NULL)
-                                        {
-                                            m_SelectedPlayer.SetHealth(0);
-                                            m_MessageOut = "Player: " + m_SelectedPlayer.GetIdentity().GetName() + " was Killed by Admin: " + m_AdminName + ".";
+                                        if (matchcounter == 1) {
+                                            if (m_SelectedPlayer != NULL)
+                                            {
+                                                m_SelectedPlayer.SetHealth(0);
+                                                m_MessageOut = "Player: " + m_SelectedPlayer.GetIdentity().GetName() + " was Killed by Admin: " + m_AdminName + ".";
+                                            }
+                                            else
+                                            {
+                                                m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            }
                                         }
                                         else
                                         {
-                                            m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
                                         }
                                     }
                                     else
@@ -511,14 +542,20 @@
                                     if (m_CmdParams[1] != "")
                                         {
                                         m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
-                                        if (m_SelectedPlayer != NULL)
-                                        {
-                                            m_SelectedPlayer.RemoveAllItems();
-                                            m_MessageOut = "Player:" + m_SelectedPlayer.GetIdentity().GetName() + " was striped down by Admin: " + m_AdminName + ".";
+                                        if (matchcounter == 1) {
+                                            if (m_SelectedPlayer != NULL)
+                                            {
+                                                m_SelectedPlayer.RemoveAllItems();
+                                                m_MessageOut = "Player:" + m_SelectedPlayer.GetIdentity().GetName() + " was striped down by Admin: " + m_AdminName + ".";
+                                            }
+                                            else
+                                            {
+                                                m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            }
                                         }
                                         else
                                         {
-                                            m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
                                         }
                                     }
                                     else
@@ -532,15 +569,21 @@
                                     if (m_CmdParams[1] != "")
                                     {
                                         m_SelectedPlayer = FindSelectedPlayer(m_CmdParams[1]);
-                                        if (m_SelectedPlayer != NULL)
-                                        {
-                                            item = GetGame().CreateObject("M67Grenade", m_SelectedPlayer.GetPosition(), false, true);
-                                            item.Explode();
-                                            m_MessageOut = "Player:" + m_SelectedPlayer.GetIdentity().GetName() + " was salted(Grenade) by Admin: " + m_AdminName + ".";
+                                        if (matchcounter == 1) {
+                                            if (m_SelectedPlayer != NULL)
+                                            {
+                                                item = GetGame().CreateObject("M67Grenade", m_SelectedPlayer.GetPosition(), false, true);
+                                                item.Explode();
+                                                m_MessageOut = "Player:" + m_SelectedPlayer.GetIdentity().GetName() + " was salted(Grenade) by Admin: " + m_AdminName + ".";
+                                            }
+                                            else
+                                            {
+                                                m_MessageOut =  "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            }
                                         }
                                         else
                                         {
-                                            m_MessageOut =  "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
+                                            m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
                                         }
                                     }
                                     else

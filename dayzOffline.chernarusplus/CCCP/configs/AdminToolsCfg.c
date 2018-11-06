@@ -14,6 +14,7 @@
 
 	//All admin actions are sent as message to all admins in game
 	bool AllAdminsMsg = true;
+    int matchcounter = 0;
 	
 	void AdminTool()
 	{
