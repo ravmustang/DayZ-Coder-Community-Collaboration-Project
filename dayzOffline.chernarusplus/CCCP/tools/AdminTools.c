@@ -265,9 +265,13 @@
                                                 m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
                                             }
                                         }
-                                        else
+                                        else if (matchcounter > 1)
                                         {
                                             m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
+                                        }
+                                        else
+                                        {
+                                            m_MessageOut = "No matches to : " + m_CmdParams[1] + " found.";
                                         }
                                     }
                                     else
@@ -358,9 +362,13 @@
                                                 m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
                                             }
                                         }
-                                        else
+                                        else if (matchcounter > 1)
                                         {
                                             m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
+                                        }
+                                        else
+                                        {
+                                            m_MessageOut = "No matches to : " + m_CmdParams[1] + " found.";
                                         }
                                     }
                                     else
@@ -408,9 +416,13 @@
                                                     m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
                                                 }
                                             }
-                                            else
+                                            else if (matchcounter > 1)
                                             {
                                                 m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
+                                            }
+                                            else
+                                            {
+                                                m_MessageOut = "No matches to : " + m_CmdParams[1] + " found.";
                                             }
                                         }
                                         else
@@ -483,9 +495,13 @@
                                                 m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
                                             }
                                         }
-                                        else
+                                        else if (matchcounter > 1)
                                         {
                                             m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
+                                        }
+                                        else
+                                        {
+                                            m_MessageOut = "No matches to : " + m_CmdParams[1] + " found.";
                                         }
                                     }
                                     else
@@ -526,9 +542,13 @@
                                                 m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
                                             }
                                         }
-                                        else
+                                        else if (matchcounter > 1)
                                         {
                                             m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
+                                        }
+                                        else
+                                        {
+                                            m_MessageOut = "No matches to : " + m_CmdParams[1] + " found.";
                                         }
                                     }
                                     else
@@ -553,9 +573,13 @@
                                                 m_MessageOut = "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
                                             }
                                         }
-                                        else
+                                        else if (matchcounter > 1)
                                         {
                                             m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
+                                        }
+                                        else
+                                        {
+                                            m_MessageOut = "No matches to : " + m_CmdParams[1] + " found.";
                                         }
                                     }
                                     else
@@ -581,9 +605,13 @@
                                                 m_MessageOut =  "Could not find player " + m_CmdParams[1] + ". Please check the name and try again.";
                                             }
                                         }
-                                        else
+                                        else if (matchcounter > 1)
                                         {
                                             m_MessageOut = "Multiple matches to : " + m_CmdParams[1] + ". Please be more specific.";
+                                        }
+                                        else
+                                        {
+                                            m_MessageOut = "No matches to : " + m_CmdParams[1] + " found.";
                                         }
                                     }
                                     else
