@@ -3,105 +3,116 @@ class ChatLine
 	const float FADE_TIMEOUT = 30;
 	const float FADE_OUT_DURATION = 3;
 	const float FADE_IN_DURATION = 0.5;
-	TextWidget m_text_widget;
-	TextWidget m_text_widget_bg;
-	private ref WidgetFadeTimer m_fade_timer;
-	private ref WidgetFadeTimer m_fade_timer_bg;
-	private ref Timer m_timeout_timer;
-	private ref Timer m_timeout_timer_bg;
+	Widget							m_RootWidget;
+	
+	TextWidget						m_NameWidget;
+	TextWidget						m_TextWidget;
+	
+	Widget							m_CCSystemWidget;
+	Widget							m_CCAdminWidget;
+	Widget							m_CCDirectWidget;
+	Widget							m_CCMegaphoneWidget;
+	Widget							m_CCTransmitterWidget;
+	Widget							m_CCPublicAddressSystemWidget;
+	
+	private ref WidgetFadeTimer 	m_FadeTimer;
+	private ref Timer 				m_TimeoutTimer;
 
 	void ChatLine(Widget root_widget)
 	{
-		m_text_widget_bg = TextWidget.Cast( GetGame().GetWorkspace().CreateWidgets("gui/layouts/day_z_chat_item.layout", root_widget) );
-		m_text_widget_bg.Show(false);
-		m_text_widget_bg.SetColor(0xFF000000);
+		m_RootWidget					= GetGame().GetWorkspace().CreateWidgets("gui/layouts/day_z_chat_item.layout", root_widget);
+	
+		m_NameWidget					= TextWidget.Cast( m_RootWidget.FindAnyWidget( "ChatItemSenderWidget" ) );
+		m_TextWidget					= TextWidget.Cast( m_RootWidget.FindAnyWidget( "ChatItemTextWidget" ) );
+		m_CCSystemWidget				= m_RootWidget.FindAnyWidget( "CCSystem" );
+		m_CCAdminWidget					= m_RootWidget.FindAnyWidget( "CCAdmin" );
+		m_CCDirectWidget				= m_RootWidget.FindAnyWidget( "CCDirect" );
+		m_CCMegaphoneWidget				= m_RootWidget.FindAnyWidget( "CCMegaphone" );
+		m_CCTransmitterWidget			= m_RootWidget.FindAnyWidget( "CCTransmitter" );
+		m_CCPublicAddressSystemWidget	= m_RootWidget.FindAnyWidget( "CCPublicAddressSystem" );
 		
-		m_text_widget = TextWidget.Cast( GetGame().GetWorkspace().CreateWidgets("gui/layouts/day_z_chat_item.layout", root_widget) );
-		m_text_widget.Show(false);
-		
-		m_fade_timer = new WidgetFadeTimer;
-		m_fade_timer_bg = new WidgetFadeTimer;
-		m_timeout_timer = new Timer(CALL_CATEGORY_GUI);
-		m_timeout_timer_bg  = new Timer(CALL_CATEGORY_GUI);
+		m_FadeTimer			= new WidgetFadeTimer;
+		m_TimeoutTimer		= new Timer(CALL_CATEGORY_GUI);
 	}
 
 	void ~ChatLine()
 	{
-		delete m_text_widget;
-		delete m_text_widget_bg;
+		delete m_TextWidget;
 	}
-
 
 	void Set(ChatMessageEventParams params)
 	{
+		m_RootWidget.Show( true );
 		if (params.param2 != "")
 		{
-			m_text_widget.SetText(params.param2 + ": " + params.param3);
-			m_text_widget_bg.SetText(params.param2 + ": " + params.param3);
+			m_NameWidget.SetText( params.param2 );
+			m_TextWidget.SetText( ": " + params.param3 );
 		}
 		else
 		{
-			m_text_widget.SetText(params.param3);
-			m_text_widget_bg.SetText(params.param3);
+			m_NameWidget.SetText( "" );
+			m_TextWidget.SetText( params.param3 );
 		}
 
-		ref TFloatArray color = new TFloatArray;
-		
-		if (params.param1 != CCStatus || params.param4 == "")
+		int channel =  params.param1;
+		if( channel & CCSystem )
+ 		{
+			m_CCSystemWidget.Show( true );
+ 		}
+		else
 		{
-			m_text_widget.SetColor(0xFFFFFFFF);
-			switch(params.param1)
-			{
-				case CCGlobal:
-					//GetGame().ConfigGetFloatArray("RscChatListDefault colorGlobalChannel", color);
-					color.Insert(1.000);
-					color.Insert(1.000);
-					color.Insert(1.000);
-					color.Insert(1.000);
-				break;
-				case CCDirect:
-					GetGame().ConfigGetFloatArray("RscChatListDefault colorDirectChannel", color);
-				break;
-				case CCStatus:
-					GetGame().ConfigGetFloatArray("RscChatListDefault colorStatusChannel", color);
-				break;
-				case CCSystem:
-					GetGame().ConfigGetFloatArray("RscChatListDefault colorSystemChannel", color);
-				break;				
-			}
-			
-			if (color.Count() == 4)
-			{
-				m_text_widget.SetColor(ARGBF(color.Get(3), color.Get(0), color.Get(1), color.Get(2)));
-			}
-			else
-			{
-				m_text_widget.SetColor(0xFFFFFFFF);
-			}
+			m_CCSystemWidget.Show( false );
+		}
+		if( channel & CCAdmin )
+		{
+			m_CCAdminWidget.Show( true );
 		}
 		else
 		{
-			GetGame().ConfigGetFloatArray("RscChatListDefault " + params.param4, color);
-		
-			if (color.Count() == 4)
-			{
-				m_text_widget.SetColor(ARGBF(color.Get(3), color.Get(0), color.Get(1), color.Get(2)));
-			}
+			m_CCAdminWidget.Show( false );
 		}
-		m_fade_timer.FadeIn(m_text_widget, FADE_IN_DURATION);
-		m_fade_timer_bg.FadeIn(m_text_widget_bg, FADE_IN_DURATION);
+		if( channel & CCDirect )
+		{
+			m_CCDirectWidget.Show( true );
+		}
+		else
+		{
+			m_CCDirectWidget.Show( false );
+		}
+		if( channel & CCMegaphone )
+		{
+			m_CCMegaphoneWidget.Show( true );
+		}
+		else
+		{
+			m_CCMegaphoneWidget.Show( false );
+		}
+		if( channel & CCTransmitter )
+		{
+			m_CCTransmitterWidget.Show( true );
+		}
+		else
+		{
+			m_CCTransmitterWidget.Show( false );
+		}
+		if( channel & CCPublicAddressSystem )
+		{
+			m_CCPublicAddressSystemWidget.Show( true );
+		}
+		else
+		{
+			m_CCPublicAddressSystemWidget.Show( false );
+		}
 		
-		m_timeout_timer.Run(FADE_TIMEOUT, m_fade_timer, "FadeOut", new Param2<Widget, float>(m_text_widget, FADE_OUT_DURATION));
-		m_timeout_timer_bg.Run(FADE_TIMEOUT, m_fade_timer_bg, "FadeOut", new Param2<Widget, float>(m_text_widget_bg, FADE_OUT_DURATION));
+		m_FadeTimer.FadeIn(m_RootWidget, FADE_IN_DURATION);
+		
+		m_TimeoutTimer.Run(FADE_TIMEOUT, m_FadeTimer, "FadeOut", new Param2<Widget, float>(m_RootWidget, FADE_OUT_DURATION));
 	}
 
 	void Clear()
 	{
-		m_text_widget.Show(false);
-		m_text_widget_bg.Show(false);
-		m_timeout_timer.Stop();
-		m_timeout_timer_bg.Stop();
-		m_fade_timer.Stop();
-		m_fade_timer_bg.Stop();
+		m_RootWidget.Show( false );
+		m_TimeoutTimer.Stop();
+		m_FadeTimer.Stop();
 	}
 }

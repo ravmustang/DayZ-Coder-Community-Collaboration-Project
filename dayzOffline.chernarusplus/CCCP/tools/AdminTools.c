@@ -12,14 +12,6 @@
 	
 	This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 */   
-    /*ref map<string, string> m_AdminList = new map<string, string>; //UID, name
-    ref map<string, vector> m_TPLocations = new map<string, vector>; //name of town, pos
-    ref array<Man> m_Admins = new array<Man>;
-    bool m_FreeCamera;
-    bool m_IsDebugRunning = false;
-    
-    // All admin actions are sent as message to all admins in game
-    bool AllAdminsMsg = false;*/
         
     //------------------------------Admin quick Commands (Chatbased)-------------------
     int TeleportAllPlayersTo(PlayerBase PlayerAdmin)

@@ -1,17 +1,27 @@
 // #include "Scripts\Classes\Gui\ChatLine.c"
 
+/*!
+	channel type, possible values
+	CCSystem(1)
+	CCAdmin(2)
+	CCDirect(4)
+	CCMegaphone(8)
+	CCTransmitter(16)
+	CCPublicAddressSystem(32)
+*/
+
 class Chat
 {
 	const int LINE_COUNT = 8;
 
-	private Widget m_root_widget;
-	private int m_line_height;
-	private int m_last_line;
-	private ref array<ref ChatLine> m_lines;
+	protected Widget					m_RootWidget;
+	protected int						m_LineHeight;
+	protected int						m_LastLine;
+	protected ref array<ref ChatLine>	m_Lines;
 
 	void Chat()
 	{
-		m_lines = new array<ref ChatLine>;
+		m_Lines = new array<ref ChatLine>;
 	}
 
 	void ~Chat()
@@ -23,34 +33,34 @@ class Chat
 	{
 		Destroy();
 
-		m_root_widget = root_widget;
+		m_RootWidget = root_widget;
 
-		if (m_root_widget)
+		if (m_RootWidget)
 		{
 			float w;
 			float h;
-			m_root_widget.GetSize(w,h);
-			m_line_height = h / LINE_COUNT;
-			m_last_line = 0;
+			m_RootWidget.GetSize(w,h);
+			m_LineHeight = h / LINE_COUNT;
+			m_LastLine = 0;
 
 			for (int i = 0; i < LINE_COUNT; i++)
 			{
-				ChatLine line = new ChatLine(m_root_widget);
-				m_lines.Insert(line);
+				ChatLine line = new ChatLine(m_RootWidget);
+				m_Lines.Insert(line);
 			}
 		}
 	}
 
 	void Destroy()
 	{
-		m_lines.Clear();
+		m_Lines.Clear();
 	}
 	
 	void Clear()
 	{
 		for (int i = 0; i < LINE_COUNT; i++)
 		{
-			m_lines.Get(i).Clear();
+			m_Lines.Get(i).Clear();
 		}
 	}
 	
@@ -60,23 +70,23 @@ class Chat
 		int name_lenght = params.param2.Length();
 		int text_lenght = params.param3.Length();
 		int total_lenght = text_lenght + name_lenght;
+		int channel =  params.param1;
 
-		/*
-		if( params.param1 == CCStatus || params.param1 == CCSystem )
+		if( channel & CCSystem )
  		{
 			if( g_Game.GetProfileOption( EDayZProfilesOptions.GAME_MESSAGES ) )
 				return;
  		}
-		else if( params.param1 == CCGlobal )
+		else if( channel & CCAdmin )
 		{
 			if( g_Game.GetProfileOption( EDayZProfilesOptions.ADMIN_MESSAGES ) )
 				return;
 		}
-		else if( params.param1 == CCDirect || params.param1 == CCItemTransmitter || params.param1 == CCPublicAddressSystem )
+		else if( channel & CCDirect || channel & CCMegaphone || channel & CCTransmitter || channel & CCPublicAddressSystem ) 
 		{
 			if( g_Game.GetProfileOption( EDayZProfilesOptions.PLAYER_MESSAGES ) )
 				return;
-		}*/
+		}
 		
 		if (total_lenght > max_lenght)
 		{
@@ -102,24 +112,21 @@ class Chat
 	
 	void AddInternal(ChatMessageEventParams params)
 	{
-		m_last_line = (m_last_line + 1) % m_lines.Count();
+		m_LastLine = (m_LastLine + 1) % m_Lines.Count();
 
-		ChatLine line = m_lines.Get(m_last_line);
+		ChatLine line = m_Lines.Get(m_LastLine);
 		line.Set(params);
 
-		for (int i = 0; i < m_lines.Count(); i++)
+		for (int i = 0; i < m_Lines.Count(); i++)
 		{
-			line = m_lines.Get((m_last_line + 1 + i) % LINE_COUNT);
-			line.m_text_widget.SetPos(0, i * m_line_height);
+			line = m_Lines.Get((m_LastLine + 1 + i) % LINE_COUNT);
+			line.m_RootWidget.SetPos(0, i * m_LineHeight);
 			
 			
 			float x = 0;
 			float y = 0;
 			
-			line.m_text_widget.GetPos(x, y);
-			x = x + 1;
-			y = y + 1;
-			line.m_text_widget_bg.SetPos(x, y);
+			line.m_RootWidget.GetPos(x, y);
 		}
 	}
 }

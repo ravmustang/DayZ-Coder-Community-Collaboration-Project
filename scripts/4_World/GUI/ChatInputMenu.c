@@ -35,9 +35,19 @@ class ChatInputMenu extends UIScriptedMenu
 		if (text != "")
 		{
 			GetGame().ChatPlayer(/*GetGame().ChatGetChannel()*/0, text);
+			if( !GetGame().IsMultiplayer() )
+			{
+				string name;
+				GetGame().GetPlayerName( name );
+				ChatMessageEventParams chat_params = new ChatMessageEventParams( CCDirect, name, text, "" );
+				MissionGameplay.Cast( GetGame().GetMission() ).m_Chat.Add( chat_params );
+			}
 		}
 
 		m_close_timer.Run(0.1, this, "Close");
+		
+		GetGame().GetMission().HideChat();
+		
 		return true;
 	}
 
@@ -60,18 +70,18 @@ class ChatInputMenu extends UIScriptedMenu
 	{
 		switch(channel)
 		{
-			case CCNone:
-				return "None";
-			case CCGlobal:
-				return "Global";
-			case CCItemTransmitter:
-				return "Radio"; 
-			case CCDirect:
-				return "Direct";      
-			case CCStatus:
-				return "Status";   
 			case CCSystem:
-				return "System";   
+				return "System";
+			case CCAdmin:
+				return "Admin";
+			case CCDirect:
+				return "Direct";
+			case CCMegaphone:
+				return "Megaphone";   
+			case CCTransmitter:
+				return "Radio"; 
+			case CCPublicAddressSystem:
+				return "PAS";
 		}	
 		
 		return "";
